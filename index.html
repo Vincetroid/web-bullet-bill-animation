@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body, html {
+            font-family: sans-serif;
+            font-size: 14px;
+            margin: 0;
+            padding: 0;
+        }
+        #css-demo{
+            background-color: #9adaea;
+            background-image: url(http://viget.com/uploads/file/time-based-animation/images/ground.png);
+            background-repeat: repeat-x;
+            background-position: left 50% top 0%;
+            background-position: 50% 100%;
+            /* width: 100%;
+            height: 100%; */
+            width: 100vw;
+            height: 100vh;
+            min-width: 500px;
+            min-height: 380px;
+            overflow: hidden;
+            position: relative;
+        }
+        #css-cannon {
+            background: url(http://viget.com/uploads/file/time-based-animation/images/cannon.png) no-repeat;
+            height: 128px;
+            right: 56px;
+            position: absolute;
+            bottom: 100px;
+            width: 64px;
+        }
+        #css-bullet {
+            background: url(http://viget.com/uploads/file/time-based-animation/images/bullet-bill.png) no-repeat;
+            height: 56px;
+            left: 460px;
+            position: absolute;
+            bottom: 167px;
+            width: 64px;
+        }
+        #speed-input {
+            width: 60px;
+        }
+
+        .buttons {
+            background: #201400;
+            background: rgba(0,0,0,0.8);
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            -ms-box-sizing: border-box;
+            box-sizing: border-box;
+            color: #fff;
+            font-weight: bold;
+            height: 50px;
+            line-height: 50px;
+            padding: 0 10px;
+            position: absolute;
+            top: 0px;
+            width: 100%;
+            z-index: 1;
+        }
+
+        .framerate {
+            float: right;
+        }
+    </style>
+</head>
+<body>
+    <section id="css-demo">
+        <section class="buttons">
+            <label for="speed">Speed</label>
+            <input name="speed" id="speed-input" type="number" value="200"> px/sec</input>
+            <button onclick="App.play();">Play</button>
+            <button onclick="App.pause();">Pause</button>
+            <span class="framerate"><span id="framerate">0</span> fps</span>
+        </section>
+
+        <section id="css-bullet"></section>
+        <section id="css-cannon"></section>
+    </section>
+
+<script>
+
+window.App = window.App || {};
+
+App.init = function() {
+    App.setup.initObjects();
+    App.setup.initSpeedInput();
+    App.setup.addListeners();
+    App.play();
+};
+
+App.pause = function() {
+    window.cancelAnimationFrame(App.animationFrameLoop);
+    App.isRunning = false;
+};
+
+App.play = function() {
+    if(!App.isRunning) {
+        App._then = Date.now();
+        App.core.frame();
+        App.isRunning = true;
+    }
+};
+
+App.core = {
+    frame: function() {
+        App.now = Date.now();
+        App._delta = (App.now - App._then) / 1000; // Converts to seconds (optional)
+        App._then = App.now;
+        App.core.update();
+        App.animationFrameLoop = window.requestAnimationFrame(App.core.frame);
+    },
+
+    update: function() {
+        App.workers.moveObjects();
+
+        // Update css position
+        var wholePixelBulletX = (App.bullet.x + 0.5) | 0;  // Fast round to whole pixel
+        App.bullet.element.style.left = wholePixelBulletX + 'px';
+
+        // Render Framerate every 1/4 second
+        if(App.framerateDisplay.timer > 0.25) {
+            App.framerateDisplay.innerHTML = (1/App._delta) | 0; // fast round to whole number
+            App.framerateDisplay.timer = 0;
+        } else {
+            App.framerateDisplay.timer += App._delta;
+        }
+    }
+};
+
+App.setup = {
+    addListeners: function() {
+        // Makes demo responsive for small screens
+        window.addEventListener('resize', App.workers.calculateBulletStart);
+    },
+
+    initSpeedInput: function() {
+        App.speedInput = document.getElementById('speed-input');
+        App.speedInput.value = App.bullet.speed;
+        App.speedInput.addEventListener('keyup', App.workers.updateSpeed);
+        App.speedInput.addEventListener('change', App.workers.updateSpeed);
+    },
+
+    initObjects: function() {
+        App.bullet = {
+            element: document.getElementById('css-bullet'),
+            x: 460,
+            y: 114,
+            height: 56,
+            width: 64,
+            startX: 460,
+            speed: 100 // pixels per second
+        };
+
+        App.cannon = {
+            element: document.getElementById('css-cannon'),
+            x: 460,
+            y: 110,
+            height: 128,
+            width: 64
+        };
+
+        // Update start X based on screen size
+        App.workers.calculateBulletStart();
+        App.bullet.x = App.bullet.startX;
+
+        App.framerateDisplay = document.getElementById('framerate');
+        App.framerateDisplay.timer = 0;
+    }
+};
+
+App.workers = {
+    moveObjects: function() {	
+        // Move bullet's x position
+        var velocity = App.bullet.speed * App._delta;
+        App.bullet.x = App.bullet.x - velocity;
+
+        // Reset when off screen
+        if (App.bullet.x < - App.bullet.width) {
+            App.bullet.x = App.bullet.startX;
+        }
+    },
+
+    calculateBulletStart: function() {
+        App.bullet.startX = App.cannon.element.offsetLeft;
+    },
+
+    updateSpeed: function(e) {
+        App.bullet.speed = App.speedInput.value;
+    }
+};
+
+App.init();
+
+</script>
+</body>
+</html>
